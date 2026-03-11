@@ -103,6 +103,24 @@ async def get_admin_stats(db: Session = Depends(get_db)):
     }
 
 
+@router.delete("/courses/{course_id}")
+async def delete_course(course_id: int, db: Session = Depends(get_db)):
+    """Delete course and related data"""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Course not found",
+        )
+
+    db.query(Enrollment).filter(Enrollment.course_id == course_id).delete()
+    db.query(CourseGrade).filter(CourseGrade.course_id == course_id).delete()
+    db.delete(course)
+    db.commit()
+
+    return {"message": "Course deleted successfully"}
+
+
 @router.post("/import/courses")
 async def import_courses(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Import courses from CSV file"""

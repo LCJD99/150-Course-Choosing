@@ -137,10 +137,16 @@ const toggleCourseStatus = (course) => {
 }
 
 const deleteCourse = (course) => {
-  if (confirm(`确认删除课程"${course.course_name}"？`)) {
-    courses.value = courses.value.filter(c => c.id !== course.id)
-    alert('课程已删除')
-  }
+  if (!confirm(`确认删除课程"${course.course_name}"？`)) return
+
+  apiService.deleteAdminCourse(course.id)
+    .then(() => {
+      courses.value = courses.value.filter(c => c.id !== course.id)
+      alert('课程已删除')
+    })
+    .catch((err) => {
+      alert(err.message || '删除失败')
+    })
 }
 
 onMounted(async () => {

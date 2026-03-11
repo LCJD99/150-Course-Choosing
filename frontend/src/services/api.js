@@ -44,6 +44,11 @@ class ApiService {
       body: JSON.stringify(data)
     })
   }
+
+  async delete(endpoint, token = null) {
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
+    return this.request(endpoint, { method: 'DELETE', headers })
+  }
   
   // Student endpoints
   async login(name, idCard) {
@@ -132,6 +137,10 @@ class ApiService {
 
   async getAdminStats() {
     return this.get('/api/admin/stats')
+  }
+
+  async deleteAdminCourse(courseId) {
+    return this.delete(`/api/admin/courses/${courseId}`)
   }
 }
 
