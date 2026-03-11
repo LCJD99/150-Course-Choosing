@@ -48,6 +48,61 @@ async def get_admin_courses(db: Session = Depends(get_db)):
     return result
 
 
+@router.get("/stats")
+async def get_admin_stats(db: Session = Depends(get_db)):
+    """Get dashboard statistics for admin view"""
+    courses = db.query(Course).all()
+    students_count = db.query(Student).count()
+
+    total_confirmed = db.query(Enrollment).filter(Enrollment.status == "CONFIRMED").count()
+    completed_students = db.query(Enrollment.student_id).filter(
+        Enrollment.status == "CONFIRMED"
+    ).distinct().all()
+    completed_students_count = len([row[0] for row in completed_students])
+
+    day_stats = []
+    for day in [1, 3, 4, 5]:
+        day_count = db.query(Enrollment).filter(
+            Enrollment.day == day,
+            Enrollment.status == "CONFIRMED"
+        ).count()
+        denominator = students_count if students_count > 0 else 1
+        day_stats.append({
+            "day": day,
+            "count": day_count,
+            "percentage": min(int((day_count / denominator) * 100), 100),
+        })
+
+    top_courses = []
+    for course in courses:
+        enrolled = db.query(Enrollment).filter(
+            Enrollment.course_id == course.id,
+            Enrollment.status == "CONFIRMED"
+        ).count()
+        fill_rate = int((enrolled / course.capacity) * 100) if course.capacity > 0 else 0
+        top_courses.append({
+            "id": course.id,
+            "course_name": course.course_name,
+            "teacher": course.teacher,
+            "day": course.day,
+            "enrolled": enrolled,
+            "capacity": course.capacity,
+            "fill_rate": fill_rate,
+        })
+
+    top_courses.sort(key=lambda item: item["fill_rate"], reverse=True)
+
+    return {
+        "total_courses": len(courses),
+        "total_students": students_count,
+        "completed_selections": completed_students_count,
+        "completion_rate": int((completed_students_count / students_count) * 100) if students_count > 0 else 0,
+        "day_stats": day_stats,
+        "top_courses": top_courses[:5],
+        "total_confirmed": total_confirmed,
+    }
+
+
 @router.post("/import/courses")
 async def import_courses(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Import courses from CSV file"""

@@ -129,6 +129,10 @@ class ApiService {
   async getAdminCourses() {
     return this.get('/api/admin/courses')
   }
+
+  async getAdminStats() {
+    return this.get('/api/admin/stats')
+  }
 }
 
 export const apiService = new ApiService()

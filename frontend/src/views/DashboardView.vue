@@ -127,9 +127,22 @@ const getDayName = (day) => {
 
 const loadStats = async () => {
   try {
-    const selectionOpen = await apiService.getSelectionOpen()
+    const [selectionOpen, adminStats] = await Promise.all([
+      apiService.getSelectionOpen(),
+      apiService.getAdminStats()
+    ])
     isOpen.value = selectionOpen.open
     updateCourseSelectionOpen(selectionOpen.open)
+
+    stats.value = {
+      total_courses: adminStats.total_courses,
+      total_students: adminStats.total_students,
+      completed_selections: adminStats.completed_selections,
+      completion_rate: adminStats.completion_rate
+    }
+
+    dayStats.value = adminStats.day_stats || []
+    topCourses.value = adminStats.top_courses || []
   } catch (err) {
     console.error('Failed to load settings:', err)
   }
@@ -152,24 +165,6 @@ const handleToggle = async () => {
 
 onMounted(() => {
   loadStats()
-  
-  stats.value = {
-    total_courses: 4,
-    total_students: 2,
-    completed_selections: 1,
-    completion_rate: 12.5
-  }
-  
-  dayStats.value = [
-    { day: 1, count: 1, percentage: 25 },
-    { day: 3, count: 0, percentage: 0 },
-    { day: 4, count: 0, percentage: 0 },
-    { day: 5, count: 0, percentage: 0 }
-  ]
-  
-  topCourses.value = [
-    { id: 1, course_name: '非遗剪纸与重彩画', teacher: '李艳华', day: 1, enrolled: 1, capacity: 15, fill_rate: 7 }
-  ]
 })
 </script>
 
