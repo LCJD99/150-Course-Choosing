@@ -103,8 +103,10 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiService } from '../services/api'
+import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
+const { updateCourseSelectionOpen } = useAuthStore()
 
 const isOpen = ref(false)
 const loading = ref(false)
@@ -127,6 +129,7 @@ const loadStats = async () => {
   try {
     const selectionOpen = await apiService.getSelectionOpen()
     isOpen.value = selectionOpen.open
+    updateCourseSelectionOpen(selectionOpen.open)
   } catch (err) {
     console.error('Failed to load settings:', err)
   }
@@ -136,6 +139,7 @@ const handleToggle = async () => {
   loading.value = true
   try {
     await apiService.setSelectionOpen(isOpen.value)
+    updateCourseSelectionOpen(isOpen.value)
     alert(`选课已${isOpen.value ? '开启' : '关闭'}`)
   } catch (err) {
     console.error('Failed to toggle selection:', err)

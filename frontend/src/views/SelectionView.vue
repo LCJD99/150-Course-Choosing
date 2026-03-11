@@ -75,13 +75,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { apiService } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
-const { token, student, courseSelectionOpen } = useAuthStore()
+const { token, courseSelectionOpen, updateCourseSelectionOpen } = useAuthStore()
 
 const selectedDay = ref(1)
 const courses = ref([])
@@ -131,6 +131,15 @@ const loadProgress = async () => {
   }
 }
 
+const loadSelectionOpen = async () => {
+  try {
+    const selectionOpen = await apiService.getSelectionOpen()
+    updateCourseSelectionOpen(selectionOpen.open)
+  } catch (err) {
+    console.error('Failed to load selection switch status:', err)
+  }
+}
+
 const handleCourseAction = (course) => {
   if (course.remaining === 0 || !courseSelectionOpen.value) return
   
@@ -150,9 +159,15 @@ const confirmAction = async () => {
   showConfirmDialog.value = false
   
   try {
+    await loadSelectionOpen()
+    if (!courseSelectionOpen.value) {
+      alert('系统尚未开通，仅支持预览')
+      return
+    }
     await apiService.selectCourse(selectedDay.value, pendingCourse.value.id, token.value)
     await loadCourses()
     await loadProgress()
+    await loadSelectionOpen()
     alert('操作成功')
   } catch (err) {
     console.error('Failed to select course:', err)
@@ -161,11 +176,11 @@ const confirmAction = async () => {
 }
 
 onMounted(() => {
+  loadSelectionOpen()
   loadCourses()
   loadProgress()
 })
 
-const { watch } = require('vue')
 watch(selectedDay, () => {
   loadCourses()
 })

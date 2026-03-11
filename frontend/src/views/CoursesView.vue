@@ -118,10 +118,11 @@ const searchText = ref('')
 const filteredCourses = computed(() => {
   return courses.value.filter(course => {
     const matchDay = !filterDay.value || course.day === parseInt(filterDay.value)
+    const matchGrade = !filterGrade.value || (course.grades || []).includes(parseInt(filterGrade.value))
     const matchSearch = !searchText.value || 
       course.course_name.includes(searchText.value) || 
       course.teacher.includes(searchText.value)
-    return matchDay && matchSearch
+    return matchDay && matchGrade && matchSearch
   })
 })
 
@@ -142,57 +143,12 @@ const deleteCourse = (course) => {
   }
 }
 
-onMounted(() => {
-  courses.value = [
-    {
-      id: 1,
-      course_id: 'C001',
-      course_name: '非遗剪纸与重彩画',
-      teacher: '李艳华',
-      capacity: 15,
-      day: 1,
-      enrolled_count: 1,
-      remaining: 14,
-      fill_percentage: 7,
-      is_active: true
-    },
-    {
-      id: 2,
-      course_id: 'C002',
-      course_name: '篮球训练',
-      teacher: '张明',
-      capacity: 20,
-      day: 3,
-      enrolled_count: 0,
-      remaining: 20,
-      fill_percentage: 0,
-      is_active: true
-    },
-    {
-      id: 3,
-      course_id: 'C003',
-      course_name: '美术基础',
-      teacher: '王芳',
-      capacity: 15,
-      day: 4,
-      enrolled_count: 0,
-      remaining: 15,
-      fill_percentage: 0,
-      is_active: true
-    },
-    {
-      id: 4,
-      course_id: 'C004',
-      course_name: '合唱团',
-      teacher: '李娜',
-      capacity: 25,
-      day: 5,
-      enrolled_count: 0,
-      remaining: 25,
-      fill_percentage: 0,
-      is_active: true
-    }
-  ]
+onMounted(async () => {
+  try {
+    courses.value = await apiService.getAdminCourses()
+  } catch (err) {
+    alert(err.message || '加载课程失败')
+  }
 })
 </script>
 

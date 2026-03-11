@@ -77,9 +77,10 @@ def validate_course_for_student(course: Course, student: Student, db: Session, e
 @router.post("/login", response_model=Token)
 async def student_login(login_data: StudentLogin, db: Session = Depends(get_db)):
     """Student login with name and ID card"""
+    student_name = login_data.name.strip()
     id_card_hash = hash_id_card(login_data.id_card)
     student = db.query(Student).filter(
-        Student.name == login_data.name,
+        Student.name == student_name,
         Student.id_card_hash == id_card_hash
     ).first()
     
@@ -134,7 +135,7 @@ async def get_courses(
             Enrollment.day == day
         ).first()
         
-        is_selected = existing_enrollment and existing_enrollment.course_id == course.id
+        is_selected = bool(existing_enrollment and existing_enrollment.course_id == course.id)
         
         course_data = CourseResponse(
             id=course.id,

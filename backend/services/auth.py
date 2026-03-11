@@ -17,14 +17,21 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+def normalize_id_card(id_card: str) -> str:
+    """Normalize ID card input for stable hashing"""
+    return str(id_card).strip().upper()
+
+
 def hash_id_card(id_card: str) -> str:
     """Hash ID card number for storage"""
-    return hashlib.sha256(id_card.encode()).hexdigest()
+    normalized = normalize_id_card(id_card)
+    return hashlib.sha256(normalized.encode()).hexdigest()
 
 
 def get_id_card_last4(id_card: str) -> str:
     """Get last 4 digits of ID card"""
-    return id_card[-4:]
+    normalized = normalize_id_card(id_card)
+    return normalized[-4:]
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:

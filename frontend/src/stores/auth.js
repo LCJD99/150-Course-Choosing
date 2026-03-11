@@ -1,13 +1,12 @@
 import { ref, computed } from 'vue'
-import { apiService } from '../services/api'
+
+const token = ref(localStorage.getItem('token') || null)
+const student = ref(JSON.parse(localStorage.getItem('student') || 'null'))
+const courseSelectionOpen = ref(localStorage.getItem('courseSelectionOpen') === 'true')
+
+const isLoggedIn = computed(() => !!token.value && !!student.value)
 
 export const useAuthStore = () => {
-  const token = ref(localStorage.getItem('token') || null)
-  const student = ref(JSON.parse(localStorage.getItem('student') || 'null'))
-  const courseSelectionOpen = ref(localStorage.getItem('courseSelectionOpen') === 'true')
-  
-  const isLoggedIn = computed(() => !!token.value && !!student.value)
-  
   const setAuth = (authData) => {
     token.value = authData.access_token
     student.value = authData.student

@@ -4,7 +4,7 @@ Admin API endpoints
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Course, CourseGrade, Student, ImportLog
+from models import Course, CourseGrade, Student, ImportLog, SystemSetting, Enrollment
 from schemas import SelectionOpenRequest
 from services.auth import hash_id_card, get_id_card_last4
 import pandas as pd
@@ -13,6 +13,39 @@ from datetime import datetime
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+@router.get("/courses")
+async def get_admin_courses(db: Session = Depends(get_db)):
+    """Get all courses with enrollment statistics for admin view"""
+    courses = db.query(Course).order_by(Course.day, Course.course_id).all()
+
+    result = []
+    for course in courses:
+        enrolled_count = db.query(Enrollment).filter(
+            Enrollment.course_id == course.id,
+            Enrollment.status == "CONFIRMED"
+        ).count()
+        remaining = max(course.capacity - enrolled_count, 0)
+        grades = db.query(CourseGrade.grade).filter(CourseGrade.course_id == course.id).all()
+        grade_values = [grade for (grade,) in grades]
+
+        result.append({
+            "id": course.id,
+            "course_id": course.course_id,
+            "course_name": course.course_name,
+            "teacher": course.teacher,
+            "capacity": course.capacity,
+            "day": course.day,
+            "bundle_id": course.bundle_id,
+            "is_active": course.is_active,
+            "enrolled_count": enrolled_count,
+            "remaining": remaining,
+            "fill_percentage": int((enrolled_count / course.capacity) * 100) if course.capacity > 0 else 0,
+            "grades": grade_values,
+        })
+
+    return result
 
 
 @router.post("/import/courses")
@@ -200,7 +233,7 @@ async def import_course_grades(file: UploadFile = File(...), db: Session = Depen
 async def import_students(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Import students from CSV file"""
     try:
-        df = pd.read_csv(file.file)
+        df = pd.read_csv(file.file, dtype=str).fillna("")
         
         required_columns = ['name', 'class_name', 'grade', 'id_card']
         for col in required_columns:
@@ -215,21 +248,32 @@ async def import_students(file: UploadFile = File(...), db: Session = Depends(ge
         
         for index, row in df.iterrows():
             try:
-                id_card_hash = hash_id_card(str(row['id_card']))
-                id_card_last4 = get_id_card_last4(str(row['id_card']))
+                student_name = str(row['name']).strip()
+                class_name = str(row['class_name']).strip()
+                id_card_raw = str(row['id_card']).strip()
+
+                if not student_name:
+                    raise ValueError("Name cannot be empty")
+                if not class_name:
+                    raise ValueError("Class name cannot be empty")
+                if not id_card_raw:
+                    raise ValueError("ID card cannot be empty")
+
+                id_card_hash = hash_id_card(id_card_raw)
+                id_card_last4 = get_id_card_last4(id_card_raw)
                 
                 existing_student = db.query(Student).filter(
-                    Student.name == str(row['name']),
+                    Student.name == student_name,
                     Student.id_card_hash == id_card_hash
                 ).first()
                 
                 if existing_student:
-                    error_report.append(f"Row {index + 1}: Student {row['name']} with ID card already exists")
+                    error_report.append(f"Row {index + 1}: Student {student_name} with ID card already exists")
                     continue
                 
                 new_student = Student(
-                    name=str(row['name']),
-                    class_name=str(row['class_name']),
+                    name=student_name,
+                    class_name=class_name,
                     grade=int(row['grade']),
                     id_card_hash=id_card_hash,
                     id_card_last4=id_card_last4
@@ -270,8 +314,7 @@ async def import_students(file: UploadFile = File(...), db: Session = Depends(ge
 @router.put("/settings/selection-open")
 async def set_selection_open(request: SelectionOpenRequest, db: Session = Depends(get_db)):
     """Enable or disable course selection"""
-    from models import SystemSetting
-    
+
     setting = db.query(SystemSetting).filter(SystemSetting.key == "course_selection_open").first()
     if not setting:
         setting = SystemSetting(key="course_selection_open", value=str(request.open).lower())
@@ -286,7 +329,6 @@ async def set_selection_open(request: SelectionOpenRequest, db: Session = Depend
 @router.get("/settings/selection-open")
 async def get_selection_open(db: Session = Depends(get_db)):
     """Get current course selection status"""
-    from models import SystemSetting
-    
+
     setting = db.query(SystemSetting).filter(SystemSetting.key == "course_selection_open").first()
     return {"open": setting.value.lower() == "true" if setting else False}

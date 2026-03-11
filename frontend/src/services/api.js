@@ -36,8 +36,8 @@ class ApiService {
     })
   }
   
-  async put(endpoint, data, token) {
-    const headers = { 'Authorization': `Bearer ${token}` }
+  async put(endpoint, data, token = null) {
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {}
     return this.request(endpoint, { 
       method: 'PUT', 
       headers,
@@ -124,6 +124,10 @@ class ApiService {
   
   async getSelectionOpen() {
     return this.get('/api/admin/settings/selection-open')
+  }
+
+  async getAdminCourses() {
+    return this.get('/api/admin/courses')
   }
 }
 

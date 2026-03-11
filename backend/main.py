@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 import sqlite3
 from pathlib import Path
 from database import Base, engine
+import models  # noqa: F401
 from api.student import router as student_router
 from api.admin import router as admin_router
 
@@ -18,6 +19,7 @@ DB_PATH = Path(__file__).parent / "data" / "course_selection.db"
 async def lifespan(app: FastAPI):
     """Initialize database on startup"""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    Base.metadata.create_all(bind=engine)
     yield
 
 
@@ -43,9 +45,3 @@ app.include_router(admin_router)
 @app.get("/")
 async def root():
     return {"message": "Course Selection System API", "status": "running"}
-
-
-@app.on_event("startup")
-async def startup():
-    """Create tables on startup"""
-    Base.metadata.create_all(bind=engine)
