@@ -35,6 +35,7 @@ class Course(Base):
     teacher = Column(String(50), nullable=False)
     capacity = Column(Integer, nullable=False)
     day = Column(Integer, nullable=False)
+    bundle_id = Column(String(50), nullable=True, index=True)
     is_active = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

@@ -28,6 +28,41 @@ async def import_courses(file: UploadFile = File(...), db: Session = Depends(get
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Missing required column: {col}",
                 )
+
+        if 'bundle_id' not in df.columns:
+            df['bundle_id'] = None
+
+        bundle_rows: Dict[str, List[int]] = {}
+        for index, row in df.iterrows():
+            bundle_id_raw = row.get('bundle_id')
+            if pd.isna(bundle_id_raw):
+                continue
+            bundle_id = str(bundle_id_raw).strip()
+            if not bundle_id:
+                continue
+            bundle_rows.setdefault(bundle_id, []).append(index)
+
+        bundle_errors = []
+        for bundle_id, row_indexes in bundle_rows.items():
+            if len(row_indexes) < 2:
+                bundle_errors.append(
+                    f"Bundle {bundle_id} must contain at least 2 courses"
+                )
+                continue
+
+            bundle_days = [int(df.loc[i, 'day']) for i in row_indexes]
+            if len(bundle_days) != len(set(bundle_days)):
+                bundle_errors.append(f"Bundle {bundle_id} has duplicate day values")
+
+            bundle_capacities = [int(df.loc[i, 'capacity']) for i in row_indexes]
+            if len(set(bundle_capacities)) != 1:
+                bundle_errors.append(f"Bundle {bundle_id} must have consistent capacity")
+
+        if bundle_errors:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="; ".join(bundle_errors),
+            )
         
         success_count = 0
         error_report = []
@@ -50,7 +85,12 @@ async def import_courses(file: UploadFile = File(...), db: Session = Depends(get
                     course_name=str(row['course_name']),
                     teacher=str(row['teacher']),
                     capacity=int(row['capacity']),
-                    day=int(row['day'])
+                    day=int(row['day']),
+                    bundle_id=(
+                        str(row['bundle_id']).strip()
+                        if not pd.isna(row['bundle_id']) and str(row['bundle_id']).strip()
+                        else None
+                    ),
                 )
                 db.add(new_course)
                 success_count += 1
@@ -77,6 +117,8 @@ async def import_courses(file: UploadFile = File(...), db: Session = Depends(get
             "errors": error_report
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         db.rollback()
         raise HTTPException(

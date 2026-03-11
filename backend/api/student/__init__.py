@@ -42,6 +42,38 @@ def is_course_selection_open(db: Session) -> bool:
     return setting.value.lower() == "true"
 
 
+def get_bundle_courses(course: Course, db: Session) -> List[Course]:
+    if not course.bundle_id:
+        return [course]
+    return db.query(Course).filter(Course.bundle_id == course.bundle_id).order_by(Course.day).all()
+
+
+def validate_course_for_student(course: Course, student: Student, db: Session, existing_enrollment: Optional[Enrollment] = None):
+    course_grade = db.query(CourseGrade).filter(
+        CourseGrade.course_id == course.id,
+        CourseGrade.grade == student.grade
+    ).first()
+    if not course_grade:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Course not available for your grade",
+        )
+
+    enrolled_count = db.query(Enrollment).filter(
+        Enrollment.course_id == course.id,
+        Enrollment.status == "CONFIRMED"
+    ).count()
+
+    if existing_enrollment and existing_enrollment.course_id == course.id:
+        enrolled_count -= 1
+
+    if enrolled_count >= course.capacity:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Course is full",
+        )
+
+
 @router.post("/login", response_model=Token)
 async def student_login(login_data: StudentLogin, db: Session = Depends(get_db)):
     """Student login with name and ID card"""
@@ -112,7 +144,10 @@ async def get_courses(
             capacity=course.capacity,
             day=course.day,
             remaining=remaining,
-            is_selected=is_selected
+            is_selected=is_selected,
+            bundle_id=course.bundle_id,
+            bundle_size=(db.query(Course).filter(Course.bundle_id == course.bundle_id).count() if course.bundle_id else None),
+            is_bundle=bool(course.bundle_id)
         )
         result.append(course_data)
     
@@ -148,7 +183,10 @@ async def get_selections(
             capacity=course.capacity,
             day=course.day,
             remaining=remaining,
-            is_selected=True
+            is_selected=True,
+            bundle_id=course.bundle_id,
+            bundle_size=(db.query(Course).filter(Course.bundle_id == course.bundle_id).count() if course.bundle_id else None),
+            is_bundle=bool(course.bundle_id)
         )
         
         enrollment_data = EnrollmentResponse(
@@ -211,43 +249,40 @@ async def update_selection(
             detail="Course day does not match requested day",
         )
     
-    course_grade = db.query(CourseGrade).filter(
-        CourseGrade.course_id == course.id,
-        CourseGrade.grade == student.grade
-    ).first()
-    if not course_grade:
+    bundle_courses = get_bundle_courses(course, db)
+
+    if len(bundle_courses) < 2 and course.bundle_id:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Course not available for your grade",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Bundled course must contain at least 2 classes",
         )
-    
-    enrolled_count = db.query(Enrollment).filter(
-        Enrollment.course_id == course.id,
-        Enrollment.status == "CONFIRMED"
-    ).count()
-    
-    if enrolled_count >= course.capacity:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Course is full",
-        )
-    
-    existing_enrollment = db.query(Enrollment).filter(
-        Enrollment.student_id == student.id,
-        Enrollment.day == day
-    ).first()
-    
-    if existing_enrollment:
-        existing_enrollment.course_id = course.id
-        existing_enrollment.status = "CONFIRMED"
-    else:
-        new_enrollment = Enrollment(
-            student_id=student.id,
-            day=day,
-            course_id=course.id,
-            status="CONFIRMED"
-        )
-        db.add(new_enrollment)
-    
+
+    for bundle_course in bundle_courses:
+        existing_enrollment = db.query(Enrollment).filter(
+            Enrollment.student_id == student.id,
+            Enrollment.day == bundle_course.day
+        ).first()
+        validate_course_for_student(bundle_course, student, db, existing_enrollment)
+
+    for bundle_course in bundle_courses:
+        existing_enrollment = db.query(Enrollment).filter(
+            Enrollment.student_id == student.id,
+            Enrollment.day == bundle_course.day
+        ).first()
+
+        if existing_enrollment:
+            existing_enrollment.course_id = bundle_course.id
+            existing_enrollment.status = "CONFIRMED"
+        else:
+            new_enrollment = Enrollment(
+                student_id=student.id,
+                day=bundle_course.day,
+                course_id=bundle_course.id,
+                status="CONFIRMED"
+            )
+            db.add(new_enrollment)
+
     db.commit()
+    if len(bundle_courses) > 1:
+        return {"message": "Bundled course selected successfully"}
     return {"message": "Course selected successfully"}

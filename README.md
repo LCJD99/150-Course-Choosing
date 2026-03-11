@@ -86,9 +86,24 @@ npm run dev
 
 ### 课程表 (courses.csv)
 ```csv
-course_id,course_name,teacher,capacity,day
-C001,非遗剪纸与重彩画,李艳华,15,1
+course_id,course_name,teacher,capacity,day,bundle_id
+C001,非遗剪纸与重彩画,李艳华,15,1,
+C101A,机器人基础-上,张老师,30,1,B1001
+C101B,机器人基础-下,张老师,30,4,B1001
 ```
+
+字段说明：
+- `bundle_id` 可选；为空表示普通单节课。
+- 相同 `bundle_id` 表示组合课（需同时报名整组）。
+
+校验规则：
+- `course_id` 唯一。
+- `capacity > 0`。
+- `day` 仅允许 `1/3/4/5`。
+- 若填写 `bundle_id`：
+  - 同组至少 2 条课程。
+  - 同组 `day` 不可重复。
+  - 同组 `capacity` 必须一致。
 
 ### 课程开设年级表 (course_grades.csv)
 ```csv

@@ -36,6 +36,9 @@ class CourseResponse(BaseModel):
     day: int
     remaining: int
     is_selected: bool = False
+    bundle_id: Optional[str] = None
+    bundle_size: Optional[int] = None
+    is_bundle: bool = False
     
     class Config:
         from_attributes = True
