@@ -1,6 +1,10 @@
 <template>
   <div class="selection-container">
     <div class="header">
+      <div class="header-top">
+        <div class="header-title">兴趣班选课</div>
+        <button class="logout-btn" @click="handleLogout">退出登录</button>
+      </div>
       <div class="progress-bar">
         <div class="progress-fill" :style="{ width: progressPercentage + '%' }"></div>
       </div>
@@ -81,7 +85,7 @@ import { apiService } from '../services/api'
 import { useAuthStore } from '../stores/auth'
 
 const router = useRouter()
-const { token, courseSelectionOpen, updateCourseSelectionOpen } = useAuthStore()
+const { token, courseSelectionOpen, updateCourseSelectionOpen, clearAuth } = useAuthStore()
 
 const selectedDay = ref(1)
 const courses = ref([])
@@ -142,13 +146,17 @@ const loadSelectionOpen = async () => {
 
 const handleCourseAction = (course) => {
   if (course.remaining === 0 || !courseSelectionOpen.value) return
+
+  const bundleHint = course.is_bundle
+    ? `\n该课程为连报课，将同时提交同组${course.bundle_size || 2}节课程。`
+    : ''
   
   if (course.is_selected) {
-    confirmDialogText.value = '是否替换为该课程？'
+    confirmDialogText.value = `是否替换为该课程？${bundleHint}`
     pendingAction.value = 'replace'
     pendingCourse.value = course
   } else {
-    confirmDialogText.value = '确认选择该课程？'
+    confirmDialogText.value = `确认选择该课程？${bundleHint}`
     pendingAction.value = 'select'
     pendingCourse.value = course
   }
@@ -172,6 +180,19 @@ const confirmAction = async () => {
   } catch (err) {
     console.error('Failed to select course:', err)
     alert(err.message || '操作失败，请稍后重试')
+  }
+}
+
+const handleLogout = async () => {
+  try {
+    if (token.value) {
+      await apiService.logout(token.value)
+    }
+  } catch (err) {
+    console.error('Failed to notify logout:', err)
+  } finally {
+    clearAuth()
+    router.push('/')
   }
 }
 
@@ -200,6 +221,33 @@ watch(selectedDay, () => {
   position: sticky;
   top: 0;
   z-index: 100;
+}
+
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.logout-btn {
+  border: 1px solid #d0d7de;
+  background: #fff;
+  color: #333;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.logout-btn:active {
+  transform: scale(0.98);
 }
 
 .progress-bar {

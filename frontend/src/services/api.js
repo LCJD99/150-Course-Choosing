@@ -70,6 +70,10 @@ class ApiService {
   async selectCourse(day, courseId, token) {
     return this.put(`/api/student/selections/${day}`, { course_id: courseId }, token)
   }
+
+  async logout(token) {
+    return this.post('/api/student/logout', {}, token)
+  }
   
   // Admin endpoints
   async importCourses(file) {

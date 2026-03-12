@@ -101,6 +101,12 @@ async def student_login(login_data: StudentLogin, db: Session = Depends(get_db))
     )
 
 
+@router.post("/logout")
+async def student_logout(student: Student = Depends(get_current_student)):
+    """Student logout (server-side sync endpoint)"""
+    return {"message": f"Student {student.name} logged out successfully"}
+
+
 @router.get("/courses", response_model=List[CourseResponse])
 async def get_courses(
     day: int,
