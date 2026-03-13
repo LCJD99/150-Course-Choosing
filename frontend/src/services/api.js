@@ -15,8 +15,26 @@ class ApiService {
     })
     
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Request failed')
+      let errorBody = null
+      try {
+        errorBody = await response.json()
+      } catch {
+        errorBody = null
+      }
+
+      if (response.status === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('student')
+        localStorage.removeItem('courseSelectionOpen')
+
+        if (window.location.pathname !== '/') {
+          window.location.href = '/'
+        }
+
+        throw new Error('登录已过期，请重新登录')
+      }
+
+      throw new Error((errorBody && errorBody.detail) || 'Request failed')
     }
     
     return response.json()
