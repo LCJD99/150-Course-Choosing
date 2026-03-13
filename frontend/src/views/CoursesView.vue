@@ -57,6 +57,10 @@
             <span class="detail-value">{{ course.teacher }}</span>
           </div>
           <div class="detail-item">
+            <span class="detail-label">开设年级</span>
+            <span class="detail-value">{{ formatGrades(course.grades) }}</span>
+          </div>
+          <div class="detail-item">
             <span class="detail-label">容量</span>
             <span class="detail-value">{{ course.capacity }} 人</span>
           </div>
@@ -129,6 +133,11 @@ const filteredCourses = computed(() => {
 const getDayName = (day) => {
   const dayNames = { 1: '周一', 3: '周三', 4: '周四', 5: '周五' }
   return dayNames[day]
+}
+
+const formatGrades = (grades) => {
+  if (!grades || grades.length === 0) return '未配置'
+  return grades.slice().sort((a, b) => a - b).map(g => `${g}年级`).join('、')
 }
 
 const toggleCourseStatus = (course) => {
