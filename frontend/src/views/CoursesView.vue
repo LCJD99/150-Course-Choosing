@@ -90,6 +90,9 @@
         </div>
         
         <div class="course-actions">
+          <button @click="viewCourseStudents(course)" class="action-btn students">
+            选课学生
+          </button>
           <button @click="toggleCourseStatus(course)" class="action-btn toggle">
             {{ course.is_active ? '禁用' : '启用' }}
           </button>
@@ -156,6 +159,10 @@ const deleteCourse = (course) => {
     .catch((err) => {
       alert(err.message || '删除失败')
     })
+}
+
+const viewCourseStudents = (course) => {
+  router.push(`/admin/courses/${course.id}/students`)
 }
 
 onMounted(async () => {
@@ -385,6 +392,15 @@ onMounted(async () => {
 
 .action-btn.toggle:hover {
   background: #d0d0d0;
+}
+
+.action-btn.students {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.action-btn.students:hover {
+  background: #bae6fd;
 }
 
 .action-btn.delete {

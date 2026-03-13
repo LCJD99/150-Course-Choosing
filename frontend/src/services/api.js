@@ -166,6 +166,10 @@ class ApiService {
   async deleteAdminCourse(courseId) {
     return this.delete(`/api/admin/courses/${courseId}`)
   }
+
+  async getCourseStudents(courseId) {
+    return this.get(`/api/admin/courses/${courseId}/students`)
+  }
 }
 
 export const apiService = new ApiService()

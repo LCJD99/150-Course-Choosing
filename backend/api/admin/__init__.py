@@ -208,6 +208,49 @@ async def delete_course(course_id: int, db: Session = Depends(get_db)):
     return {"message": "Course deleted successfully"}
 
 
+@router.get("/courses/{course_id}/students")
+async def get_course_students(course_id: int, db: Session = Depends(get_db)):
+    """Get students selected for a specific course"""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Course not found",
+        )
+
+    enrollments = db.query(Enrollment).filter(
+        Enrollment.course_id == course_id,
+        Enrollment.status == "CONFIRMED"
+    ).order_by(Enrollment.created_at.desc()).all()
+
+    students = []
+    for enrollment in enrollments:
+        student = db.query(Student).filter(Student.id == enrollment.student_id).first()
+        if not student:
+            continue
+        students.append({
+            "id": student.id,
+            "name": student.name,
+            "class_name": student.class_name,
+            "grade": student.grade,
+            "id_card_last4": student.id_card_last4,
+            "selected_day": enrollment.day,
+            "selected_at": enrollment.created_at.isoformat() if enrollment.created_at else None,
+        })
+
+    return {
+        "course": {
+            "id": course.id,
+            "course_id": course.course_id,
+            "course_name": course.course_name,
+            "teacher": course.teacher,
+            "day": course.day,
+        },
+        "students": students,
+        "total": len(students),
+    }
+
+
 @router.post("/import/courses")
 async def import_courses(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """Import courses from CSV file"""
