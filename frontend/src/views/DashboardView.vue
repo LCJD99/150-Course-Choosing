@@ -90,6 +90,10 @@
           <span class="btn-icon">📋</span>
           <span class="btn-text">课程管理</span>
         </button>
+        <button @click="$router.push('/admin/students')" class="action-btn">
+          <span class="btn-icon">👥</span>
+          <span class="btn-text">已选课学生</span>
+        </button>
         <button @click="$router.push('/')" class="action-btn secondary">
           <span class="btn-icon">🔙</span>
           <span class="btn-text">返回选课</span>

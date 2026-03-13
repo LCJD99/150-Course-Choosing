@@ -143,6 +143,26 @@ class ApiService {
     return this.get('/api/admin/stats')
   }
 
+  async getAdminStudents(filters = {}) {
+    const params = new URLSearchParams()
+    if (filters.grade) params.append('grade', String(filters.grade))
+    if (filters.class_name) params.append('class_name', filters.class_name)
+    const query = params.toString()
+    return this.get(`/api/admin/students${query ? `?${query}` : ''}`)
+  }
+
+  async getSelectedStudents(filters = {}) {
+    const params = new URLSearchParams()
+    if (filters.grade) params.append('grade', String(filters.grade))
+    if (filters.class_name) params.append('class_name', filters.class_name)
+    const query = params.toString()
+    return this.get(`/api/admin/selected-students${query ? `?${query}` : ''}`)
+  }
+
+  async clearStudentSelections(studentId) {
+    return this.delete(`/api/admin/selected-students/${studentId}/selections`)
+  }
+
   async deleteAdminCourse(courseId) {
     return this.delete(`/api/admin/courses/${courseId}`)
   }

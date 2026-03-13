@@ -1,7 +1,7 @@
 """
 Admin API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Course, CourseGrade, Student, ImportLog, SystemSetting, Enrollment
@@ -101,6 +101,93 @@ async def get_admin_stats(db: Session = Depends(get_db)):
         "top_courses": top_courses[:5],
         "total_confirmed": total_confirmed,
     }
+
+
+@router.get("/students")
+async def get_admin_students(
+    grade: int | None = Query(default=None),
+    class_name: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """Get students list with optional grade/class filters"""
+    query = db.query(Student)
+
+    if grade is not None:
+        query = query.filter(Student.grade == grade)
+    if class_name:
+        query = query.filter(Student.class_name == class_name.strip())
+
+    students = query.order_by(Student.grade, Student.class_name, Student.name).all()
+    return [
+        {
+            "id": student.id,
+            "name": student.name,
+            "class_name": student.class_name,
+            "grade": student.grade,
+            "id_card_last4": student.id_card_last4,
+            "created_at": student.created_at.isoformat() if student.created_at else None,
+        }
+        for student in students
+    ]
+
+
+@router.get("/selected-students")
+async def get_selected_students(
+    grade: int | None = Query(default=None),
+    class_name: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """Get students who have confirmed selections with optional filters"""
+    query = db.query(Student)
+
+    if grade is not None:
+        query = query.filter(Student.grade == grade)
+    if class_name:
+        query = query.filter(Student.class_name == class_name.strip())
+
+    students = query.order_by(Student.grade, Student.class_name, Student.name).all()
+    result = []
+    for student in students:
+        enrollments = db.query(Enrollment).filter(
+            Enrollment.student_id == student.id,
+            Enrollment.status == "CONFIRMED"
+        ).all()
+
+        if not enrollments:
+            continue
+
+        selections = {}
+        for enrollment in enrollments:
+            course = db.query(Course).filter(Course.id == enrollment.course_id).first()
+            if course:
+                selections[str(enrollment.day)] = {
+                    "course_id": course.course_id,
+                    "course_name": course.course_name,
+                }
+
+        result.append({
+            "id": student.id,
+            "name": student.name,
+            "class_name": student.class_name,
+            "grade": student.grade,
+            "id_card_last4": student.id_card_last4,
+            "selected_days": len(enrollments),
+            "selections": selections,
+        })
+
+    return result
+
+
+@router.delete("/selected-students/{student_id}/selections")
+async def clear_student_selections(student_id: int, db: Session = Depends(get_db)):
+    """Clear all confirmed selections for a student"""
+    student = db.query(Student).filter(Student.id == student_id).first()
+    if not student:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Student not found")
+
+    deleted = db.query(Enrollment).filter(Enrollment.student_id == student_id).delete()
+    db.commit()
+    return {"message": "Selections cleared", "deleted": deleted}
 
 
 @router.delete("/courses/{course_id}")
