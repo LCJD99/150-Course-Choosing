@@ -46,6 +46,20 @@
     </div>
     
     <div class="section">
+      <h2 class="section-title">管理员钥匙</h2>
+      <div class="master-key-box">
+        <input
+          v-model="masterKey"
+          class="master-key-input"
+          type="password"
+          placeholder="输入数字钥匙（6-20位）"
+        />
+        <button class="action-btn" :disabled="loading" @click="saveMasterKey">保存钥匙</button>
+        <span class="master-key-status">当前状态：{{ masterKeyConfigured ? '已配置' : '未配置' }}</span>
+      </div>
+    </div>
+
+    <div class="section">
       <h2 class="section-title">按天选课统计</h2>
       <div class="day-stats">
         <div v-for="day in dayStats" :key="day.day" class="day-stat">
@@ -123,6 +137,8 @@ const stats = ref({
 
 const dayStats = ref([])
 const topCourses = ref([])
+const masterKey = ref('')
+const masterKeyConfigured = ref(false)
 
 const getDayName = (day) => {
   const dayNames = { 1: '周一', 3: '周三', 4: '周四', 5: '周五' }
@@ -147,8 +163,31 @@ const loadStats = async () => {
 
     dayStats.value = adminStats.day_stats || []
     topCourses.value = adminStats.top_courses || []
+
+    const keyStatus = await apiService.getAdminMasterKeyStatus()
+    masterKeyConfigured.value = keyStatus.configured
   } catch (err) {
     console.error('Failed to load settings:', err)
+  }
+}
+
+const saveMasterKey = async () => {
+  const key = masterKey.value.trim()
+  if (!/^\d{6,20}$/.test(key)) {
+    alert('管理员钥匙必须为6-20位数字')
+    return
+  }
+
+  loading.value = true
+  try {
+    await apiService.setAdminMasterKey(key)
+    masterKeyConfigured.value = true
+    masterKey.value = ''
+    alert('管理员钥匙保存成功')
+  } catch (err) {
+    alert(err.message || '保存失败')
+  } finally {
+    loading.value = false
   }
 }
 
@@ -320,6 +359,25 @@ input:disabled + .slider {
   font-weight: 600;
   color: #333;
   margin: 0 0 20px 0;
+}
+
+.master-key-box {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.master-key-input {
+  min-width: 220px;
+  padding: 10px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
+
+.master-key-status {
+  color: #475569;
+  font-size: 13px;
 }
 
 .day-stats {

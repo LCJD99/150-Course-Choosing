@@ -5,11 +5,12 @@ from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File,
 from sqlalchemy.orm import Session
 from database import get_db
 from models import Course, CourseGrade, Student, ImportLog, SystemSetting, Enrollment
-from schemas import SelectionOpenRequest
+from schemas import SelectionOpenRequest, AdminMasterKeyRequest, CourseStatusRequest
 from services.auth import hash_id_card, get_id_card_last4
 import pandas as pd
 from typing import List, Dict
 from datetime import datetime
+import hashlib
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -206,6 +207,30 @@ async def delete_course(course_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Course deleted successfully"}
+
+
+@router.put("/courses/{course_id}/status")
+async def set_course_status(
+    course_id: int,
+    request: CourseStatusRequest,
+    db: Session = Depends(get_db)
+):
+    """Enable or disable a course"""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Course not found",
+        )
+
+    course.is_active = request.is_active
+    db.commit()
+
+    return {
+        "message": f"Course {'enabled' if request.is_active else 'disabled'} successfully",
+        "course_id": course.id,
+        "is_active": course.is_active,
+    }
 
 
 @router.get("/courses/{course_id}/students")
@@ -535,3 +560,32 @@ async def get_selection_open(db: Session = Depends(get_db)):
 
     setting = db.query(SystemSetting).filter(SystemSetting.key == "course_selection_open").first()
     return {"open": setting.value.lower() == "true" if setting else False}
+
+
+@router.put("/settings/admin-master-key")
+async def set_admin_master_key(request: AdminMasterKeyRequest, db: Session = Depends(get_db)):
+    """Set admin master key hash used for emergency student login"""
+    master_key = request.key.strip()
+    if not master_key.isdigit() or not (6 <= len(master_key) <= 20):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Master key must be digits only and 6-20 characters",
+        )
+
+    key_hash = hashlib.sha256(master_key.encode()).hexdigest()
+    setting = db.query(SystemSetting).filter(SystemSetting.key == "admin_master_key_hash").first()
+    if not setting:
+        setting = SystemSetting(key="admin_master_key_hash", value=key_hash)
+        db.add(setting)
+    else:
+        setting.value = key_hash
+
+    db.commit()
+    return {"message": "Admin master key updated"}
+
+
+@router.get("/settings/admin-master-key")
+async def get_admin_master_key_status(db: Session = Depends(get_db)):
+    """Get admin master key configuration status"""
+    setting = db.query(SystemSetting).filter(SystemSetting.key == "admin_master_key_hash").first()
+    return {"configured": bool(setting and setting.value)}

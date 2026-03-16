@@ -143,9 +143,16 @@ const formatGrades = (grades) => {
   return grades.slice().sort((a, b) => a - b).map(g => `${g}年级`).join('、')
 }
 
-const toggleCourseStatus = (course) => {
-  course.is_active = !course.is_active
-  alert(`课程"${course.course_name}"已${course.is_active ? '启用' : '禁用'}`)
+const toggleCourseStatus = async (course) => {
+  const targetStatus = !course.is_active
+
+  try {
+    await apiService.setAdminCourseStatus(course.id, targetStatus)
+    course.is_active = targetStatus
+    alert(`课程"${course.course_name}"已${course.is_active ? '启用' : '禁用'}`)
+  } catch (err) {
+    alert(err.message || '更新课程状态失败')
+  }
 }
 
 const deleteCourse = (course) => {

@@ -63,3 +63,11 @@ class CourseSelectionRequest(BaseModel):
 
 class SelectionOpenRequest(BaseModel):
     open: bool
+
+
+class AdminMasterKeyRequest(BaseModel):
+    key: str
+
+
+class CourseStatusRequest(BaseModel):
+    is_active: bool

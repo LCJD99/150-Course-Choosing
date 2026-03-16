@@ -153,6 +153,14 @@ class ApiService {
     return this.get('/api/admin/settings/selection-open')
   }
 
+  async setAdminMasterKey(key) {
+    return this.put('/api/admin/settings/admin-master-key', { key })
+  }
+
+  async getAdminMasterKeyStatus() {
+    return this.get('/api/admin/settings/admin-master-key')
+  }
+
   async getAdminCourses() {
     return this.get('/api/admin/courses')
   }
@@ -183,6 +191,10 @@ class ApiService {
 
   async deleteAdminCourse(courseId) {
     return this.delete(`/api/admin/courses/${courseId}`)
+  }
+
+  async setAdminCourseStatus(courseId, isActive) {
+    return this.put(`/api/admin/courses/${courseId}/status`, { is_active: isActive })
   }
 
   async getCourseStudents(courseId) {
